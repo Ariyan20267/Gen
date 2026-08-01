@@ -425,12 +425,20 @@ box_center "📦  মডিউল ইনস্টল করা হচ্ছে  
 box_line
 
 FAILED=()
+FAILED=()
 MODULES=(
+    "psutil|pkg"
     "requests|pip"
+    "PyJWT|pip"
+    "urllib3|pip"
+    "aiohttp|pip"
+    "flask|pip"
     "pycryptodome|pip"
-    "psutil|pip"
     "protobuf|pip"
-    "blackboxprotobuf|pip"
+    "protobuf-decoder|pip"
+    "google-play-scraper|pip"
+    "pytz|pip"
+    "pyfiglet|pip"
 )
 TOTAL=${#MODULES[@]}
 DONE=0
