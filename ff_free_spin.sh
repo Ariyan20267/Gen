@@ -154,7 +154,7 @@ print_status() {
 }
 
 # ============================================================
-# ডাউনলোড অ্যানিমেশন
+# ডাউনলোড অ্যানিমেশন (শুধুমাত্র ফাইল ডিলিট)
 # ============================================================
 download_animation() {
     local folder_name="$1"
@@ -166,13 +166,62 @@ download_animation() {
     echo -e "${CYAN}${BOLD}  ══════════════════════════════════════════════${RESET}"
     echo ""
     
+    # ইন্টারনেট চেক
+    echo -e "${YELLOW}${BOLD}  [*] ইন্টারনেট কানেকশন চেক করা হচ্ছে...${RESET}"
+    if ! ping -c 1 -W 2 8.8.8.8 &>/dev/null; then
+        echo -e "${RED}${BOLD}  ❌ ইন্টারনেট কানেকশন নেই!${RESET}"
+        echo -e "${YELLOW}${BOLD}  ⚠️  ওয়াই-ফাই বা মোবাইল ডাটা চালু করুন${RESET}"
+        sleep 2
+        return 1
+    fi
+    echo -e "${GREEN}${BOLD}  ✅ ইন্টারনেট সংযুক্ত${RESET}"
+    echo ""
+    
+    # গিট চেক
+    echo -e "${YELLOW}${BOLD}  [*] গিট চেক করা হচ্ছে...${RESET}"
+    if ! command -v git &>/dev/null; then
+        echo -e "${RED}${BOLD}  ❌ গিট ইনস্টল নেই!${RESET}"
+        echo -e "${YELLOW}${BOLD}  ⚠️  গিট ইনস্টল করা হচ্ছে...${RESET}"
+        pkg install git -y
+    fi
+    echo -e "${GREEN}${BOLD}  ✅ গিট প্রস্তুত${RESET}"
+    echo ""
+    
+    # ফোল্ডার তৈরি (যদি না থাকে)
+    mkdir -p "$target_path"
+    
+    # ফোল্ডারের ভিতরের সব ফাইল ডিলিট (কিন্তু ফোল্ডার থাকবে)
+    if [ -d "$target_path" ]; then
+        echo -e "${YELLOW}${BOLD}  [*] পুরনো ফাইল চেক করা হচ্ছে...${RESET}"
+        
+        # ফোল্ডার খালি আছে কিনা চেক
+        if [ "$(ls -A "$target_path" 2>/dev/null)" ]; then
+            echo -e "${YELLOW}${BOLD}  [!] পুরনো ফাইল পাওয়া গেছে!${RESET}"
+            echo -e "${YELLOW}${BOLD}  [*] ফাইল ডিলিট করা হচ্ছে...${RESET}"
+            
+            # শুধুমাত্র কন্টেন্ট ডিলিট (ফোল্ডার নয়)
+            rm -rf "${target_path:?}"/* 2>/dev/null
+            rm -rf "${target_path:?}"/.[!.]* 2>/dev/null  # হিডেন ফাইল
+            
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}${BOLD}  ✅ সব ফাইল ডিলিট সম্পূর্ণ${RESET}"
+            else
+                echo -e "${RED}${BOLD}  ❌ ফাইল ডিলিট করতে ব্যর্থ!${RESET}"
+                echo -e "${YELLOW}${BOLD}  ⚠️  ম্যানুয়ালি চেষ্টা করুন${RESET}"
+                sleep 2
+                return 1
+            fi
+        else
+            echo -e "${GREEN}${BOLD}  ✅ ফোল্ডার ইতিমধ্যে খালি${RESET}"
+        fi
+        echo ""
+    fi
+    
     # স্পিনার অ্যানিমেশন
     local spin_chars=("⣾" "⣽" "⣻" "⢿" "⡿" "⣟" "⣯" "⣷")
     local colors=("$RED" "$ORANGE" "$YELLOW" "$GREEN" "$CYAN" "$BLUE" "$PURPLE" "$PINK")
     local dots=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
     
-    # ১০ সেকেন্ডের জন্য অ্যানিমেশন চলবে (বাস্তবে ক্লোনিং দ্রুত শেষ হলে থামবে)
-    local pid=""
     local temp_dir="${TMPDIR:-/tmp}/download_anim"
     mkdir -p "$temp_dir"
     local flag_file="$temp_dir/running"
@@ -189,12 +238,11 @@ download_animation() {
             local spinner="${spin_chars[$sp_idx]}"
             local dot="${dots[$d_idx]}"
             
-            # এলোমেলো বার্তা
             local msgs=(
                 "📦 ফাইল সংগ্রহ করা হচ্ছে"
                 "🔍 রিপোজিটরি খোঁজা হচ্ছে"
                 "⚡ ডেটা ট্রান্সফার চলছে"
-                "📁 ফোল্ডার তৈরি হচ্ছে"
+                "📁 ফাইল কপি হচ্ছে"
                 "🔄 ফাইল সিঙ্ক্রোনাইজ করা হচ্ছে"
                 "🚀 ডাউনলোড প্রগতি"
                 "💫 ফাইল প্রক্রিয়াকরণ"
@@ -202,7 +250,6 @@ download_animation() {
             )
             local msg="${msgs[$(( i % ${#msgs[@]} ))]}"
             
-            # প্রগ্রেস বার তৈরি
             local progress=$(( (i * 100) / 60 ))
             [ $progress -gt 95 ] && progress=95
             local bar_len=$(( progress * 40 / 100 ))
@@ -216,7 +263,7 @@ download_animation() {
                 fi
             done
             
-            printf "\033[1A\033[2K"  # লাইন মুছে উপরে যাও
+            printf "\033[1A\033[2K"
             printf "\r  ${color}${BOLD}${spinner} ${dot} ${msg}${RESET}\n"
             printf "  ${color}${BOLD}[${bar}] ${progress}%%${RESET}\n"
             printf "  ${DIM}ফোল্ডার: ${folder_name}${RESET}\n"
@@ -228,25 +275,26 @@ download_animation() {
     local anim_pid=$!
     
     # আসল ডাউনলোড/ক্লোন কাজ
+    echo -e "${YELLOW}${BOLD}  [*] রিপোজিটরি ক্লোন করা হচ্ছে...${RESET}"
+    
     if [ -d "$target_path/.git" ]; then
-        git -C "$target_path" pull 2>/dev/null
+        echo -e "${YELLOW}${BOLD}  [*] রিপোজিটরি আপডেট করা হচ্ছে...${RESET}"
+        git -C "$target_path" pull 2>&1
         local result=$?
     else
-        rm -rf "$target_path" 2>/dev/null
-        git clone --depth 1 "$repo_url" "$target_path" 2>/dev/null
+        echo -e "${YELLOW}${BOLD}  [*] নতুন রিপোজিটরি ক্লোন করা হচ্ছে...${RESET}"
+        git clone --depth 1 "$repo_url" "$target_path" 2>&1
         local result=$?
     fi
     
     # অ্যানিমেশন থামানো
     rm -f "$flag_file"
     wait $anim_pid 2>/dev/null
-    
-    # ক্লিনআপ
     rm -rf "$temp_dir"
     
     # ফলাফল দেখানো
     if [ $result -eq 0 ] && [ -f "$target_path/main.py" ]; then
-        printf "\033[2A\033[2K"  # ২ লাইন উপরে
+        printf "\033[2A\033[2K"
         printf "\r  ${GREEN}${BOLD}✅ ${folder_name} ডাউনলোড সম্পূর্ণ!${RESET}\n"
         printf "  ${GREEN}${BOLD}🚀 main.py রান করার জন্য প্রস্তুত${RESET}\n"
         sleep 1
@@ -254,7 +302,7 @@ download_animation() {
     else
         printf "\033[2A\033[2K"
         printf "\r  ${RED}${BOLD}❌ ডাউনলোড ব্যর্থ!${RESET}\n"
-        printf "  ${YELLOW}${BOLD}⚠️  ইন্টারনেট কানেকশন চেক করুন${RESET}\n"
+        printf "  ${YELLOW}${BOLD}⚠️  রিপোজিটরি লিংক চেক করুন${RESET}\n"
         sleep 2
         return 1
     fi
@@ -424,7 +472,6 @@ flash_logo
 box_center "📦  মডিউল ইনস্টল করা হচ্ছে  📦" "$YELLOW"
 box_line
 
-FAILED=()
 FAILED=()
 MODULES=(
     "psutil|pkg"
