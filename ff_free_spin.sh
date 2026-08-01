@@ -319,18 +319,11 @@ box_line
 
 FAILED=()
 MODULES=(
-    "psutil|pkg"
     "requests|pip"
-    "PyJWT|pip"
-    "urllib3|pip"
-    "aiohttp|pip"
-    "flask|pip"
     "pycryptodome|pip"
+    "psutil|pip"
     "protobuf|pip"
-    "protobuf-decoder|pip"
-    "google-play-scraper|pip"
-    "pytz|pip"
-    "pyfiglet|pip"
+    "blackboxprotobuf|pip"
 )
 TOTAL=${#MODULES[@]}
 DONE=0
@@ -414,7 +407,7 @@ if [ -d "$STORAGE_PATH/.git" ]; then
     git -C "$STORAGE_PATH" pull 2>/dev/null
 else
     rm -rf "$STORAGE_PATH" 2>/dev/null
-    git clone --depth 1 https://github.com/Ariyan20267/New-update-bot.git "$STORAGE_PATH" 2>/dev/null
+    git clone --depth 1 https://github.com/Ariyan20267/Gen.git"$STORAGE_PATH" 2>/dev/null
 fi
 
 if [ -f "$STORAGE_PATH/main.py" ]; then
