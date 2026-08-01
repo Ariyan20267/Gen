@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # ============================================================
-#         ARIYAN LEVELUP BOT - TERMUX AUTO SETUP
+#         FREE FIRE SPEN BOT - TERMUX AUTO SETUP
 # ============================================================
 
 RESET="\033[0m"
@@ -62,7 +62,7 @@ print_ff_logo() {
     local ri=$(( RANDOM % RGB_LEN ))
     local rc="${RGB[$ri]}"
 
-    echo -e "  ${rc}${BOLD} ⚡ আরিয়ান লেভেলআপ সেটআপ চলছে... ⚡${RESET}"
+    echo -e "  ${rc}${BOLD} ⚡ ফ্রি ফায়ার স্পেন বট সেটআপ চলছে... ⚡${RESET}"
     echo ""
 
     local lines=("$FF_L0" "$FF_L1" "$FF_L2" "$FF_L3" "$FF_L4" "$FF_L5" "$FF_L6" "$FF_L7" "$FF_L8" "$FF_L9" "$FF_LA" "$FF_LB" "$FF_LC")
@@ -150,6 +150,113 @@ print_status() {
     if   [ "$state" = "ok" ];   then echo -e "  ${GREEN}${BOLD}[✔] $name ${RESET} ${GREEN}✅ সফল${RESET}  ($pct%)"
     elif [ "$state" = "fail" ]; then echo -e "  ${RED}${BOLD}[✗] $name ${RESET} ${RED}❌ ব্যর্থ${RESET}  ($pct%)"
     else                             echo -e "  ${c}${BOLD}⬇️  ইনস্টল হচ্ছে: $name ${RESET}  ($pct%)"
+    fi
+}
+
+# ============================================================
+# ডাউনলোড অ্যানিমেশন
+# ============================================================
+download_animation() {
+    local folder_name="$1"
+    local repo_url="https://github.com/Ariyan20267/Gen.git"
+    local target_path="$2"
+    
+    echo -e "${CYAN}${BOLD}  ══════════════════════════════════════════════${RESET}"
+    echo -e "${PINK}${BOLD}     📥 ${folder_name} ডাউনলোড হচ্ছে...${RESET}"
+    echo -e "${CYAN}${BOLD}  ══════════════════════════════════════════════${RESET}"
+    echo ""
+    
+    # স্পিনার অ্যানিমেশন
+    local spin_chars=("⣾" "⣽" "⣻" "⢿" "⡿" "⣟" "⣯" "⣷")
+    local colors=("$RED" "$ORANGE" "$YELLOW" "$GREEN" "$CYAN" "$BLUE" "$PURPLE" "$PINK")
+    local dots=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+    
+    # ১০ সেকেন্ডের জন্য অ্যানিমেশন চলবে (বাস্তবে ক্লোনিং দ্রুত শেষ হলে থামবে)
+    local pid=""
+    local temp_dir="${TMPDIR:-/tmp}/download_anim"
+    mkdir -p "$temp_dir"
+    local flag_file="$temp_dir/running"
+    echo "1" > "$flag_file"
+    
+    # অ্যানিমেশন প্রক্রিয়া
+    (
+        local i=0
+        while [ -f "$flag_file" ]; do
+            local c_idx=$(( i % ${#colors[@]} ))
+            local sp_idx=$(( i % ${#spin_chars[@]} ))
+            local d_idx=$(( (i / 2) % ${#dots[@]} ))
+            local color="${colors[$c_idx]}"
+            local spinner="${spin_chars[$sp_idx]}"
+            local dot="${dots[$d_idx]}"
+            
+            # এলোমেলো বার্তা
+            local msgs=(
+                "📦 ফাইল সংগ্রহ করা হচ্ছে"
+                "🔍 রিপোজিটরি খোঁজা হচ্ছে"
+                "⚡ ডেটা ট্রান্সফার চলছে"
+                "📁 ফোল্ডার তৈরি হচ্ছে"
+                "🔄 ফাইল সিঙ্ক্রোনাইজ করা হচ্ছে"
+                "🚀 ডাউনলোড প্রগতি"
+                "💫 ফাইল প্রক্রিয়াকরণ"
+                "✨ আপডেট চলছে"
+            )
+            local msg="${msgs[$(( i % ${#msgs[@]} ))]}"
+            
+            # প্রগ্রেস বার তৈরি
+            local progress=$(( (i * 100) / 60 ))
+            [ $progress -gt 95 ] && progress=95
+            local bar_len=$(( progress * 40 / 100 ))
+            local bar=""
+            for j in $(seq 1 40); do
+                if [ $j -le $bar_len ]; then
+                    local ci=$(( (j + i) % RGB_LEN ))
+                    bar="${bar}${RGB[$ci]}█${RESET}"
+                else
+                    bar="${bar}${DIM}░${RESET}"
+                fi
+            done
+            
+            printf "\033[1A\033[2K"  # লাইন মুছে উপরে যাও
+            printf "\r  ${color}${BOLD}${spinner} ${dot} ${msg}${RESET}\n"
+            printf "  ${color}${BOLD}[${bar}] ${progress}%%${RESET}\n"
+            printf "  ${DIM}ফোল্ডার: ${folder_name}${RESET}\n"
+            
+            i=$((i + 1))
+            sleep 0.15
+        done
+    ) &
+    local anim_pid=$!
+    
+    # আসল ডাউনলোড/ক্লোন কাজ
+    if [ -d "$target_path/.git" ]; then
+        git -C "$target_path" pull 2>/dev/null
+        local result=$?
+    else
+        rm -rf "$target_path" 2>/dev/null
+        git clone --depth 1 "$repo_url" "$target_path" 2>/dev/null
+        local result=$?
+    fi
+    
+    # অ্যানিমেশন থামানো
+    rm -f "$flag_file"
+    wait $anim_pid 2>/dev/null
+    
+    # ক্লিনআপ
+    rm -rf "$temp_dir"
+    
+    # ফলাফল দেখানো
+    if [ $result -eq 0 ] && [ -f "$target_path/main.py" ]; then
+        printf "\033[2A\033[2K"  # ২ লাইন উপরে
+        printf "\r  ${GREEN}${BOLD}✅ ${folder_name} ডাউনলোড সম্পূর্ণ!${RESET}\n"
+        printf "  ${GREEN}${BOLD}🚀 main.py রান করার জন্য প্রস্তুত${RESET}\n"
+        sleep 1
+        return 0
+    else
+        printf "\033[2A\033[2K"
+        printf "\r  ${RED}${BOLD}❌ ডাউনলোড ব্যর্থ!${RESET}\n"
+        printf "  ${YELLOW}${BOLD}⚠️  ইন্টারনেট কানেকশন চেক করুন${RESET}\n"
+        sleep 2
+        return 1
     fi
 }
 
@@ -303,7 +410,7 @@ rgb_progress_box() {
 # ══════════════════ বক্স আঁকা শুরু ══════════════════
 clear
 box_top
-box_center "⚡ 𝗔𝗥𝗜𝗬𝗔𝗡 𝗟𝗘𝗩𝗘𝗟𝗨𝗣 𝗕𝗢𝗧 ⚡" "$YELLOW"
+box_center "⚡ 𝗙𝗥𝗘𝗘 𝗙𝗜𝗥𝗘 𝗦𝗣𝗘𝗡 𝗕𝗢𝗧 ⚡" "$YELLOW"
 box_center "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" "$YELLOW"
 box_line
 
@@ -377,7 +484,7 @@ echo -e "${BLUE}${BOLD}  ══════════════════�
 echo ""
 
 # ============================================================
-# WHATSAPP GROUP JOIN + HIDDEN DOWNLOAD + RUN
+# WHATSAPP GROUP JOIN
 # ============================================================
 
 WHATSAPP_LINK="https://whatsapp.com/channel/0029Vb7jk7n6mYPIZIHDeV1T"
@@ -394,29 +501,44 @@ fi
 echo -e "${GREEN}${BOLD}  [✔] WhatsApp ওপেন করা হয়েছে${RESET}"
 sleep 2
 
+# ============================================================
+# FREE FIRE SPEN ডাউনলোড (সুন্দর অ্যানিমেশন সহ)
+# ============================================================
+
 clear
-echo -e "${DIM}${BOLD}  ══════════════════════════════════════════════${RESET}"
-echo -e "${DIM}${BOLD}         ব্যাকগ্রাউন্ডে ডাউনলোড চলছে...${RESET}"
-echo -e "${DIM}${BOLD}  ══════════════════════════════════════════════${RESET}"
+echo -e "${PURPLE}${BOLD}  ══════════════════════════════════════════════${RESET}"
+echo -e "${PURPLE}${BOLD}     🎮 FREE FIRE SPEN - ডাউনলোড ও সেটআপ 🎮${RESET}"
+echo -e "${PURPLE}${BOLD}  ══════════════════════════════════════════════${RESET}"
 echo ""
 
-STORAGE_PATH="/sdcard/levelup bot"
-[ ! -d "/sdcard" ] && [ -d "/storage/emulated/0" ] && STORAGE_PATH="/storage/emulated/0/levelup bot"
+# ফোল্ডার পাথ নির্ধারণ
+STORAGE_PATH="/sdcard/free fire spen"
+[ ! -d "/sdcard" ] && [ -d "/storage/emulated/0" ] && STORAGE_PATH="/storage/emulated/0/free fire spen"
 
-if [ -d "$STORAGE_PATH/.git" ]; then
-    git -C "$STORAGE_PATH" pull 2>/dev/null
-else
-    rm -rf "$STORAGE_PATH" 2>/dev/null
-    git clone --depth 1 https://github.com/Ariyan20267/Gen.git"$STORAGE_PATH" 2>/dev/null
-fi
-
-if [ -f "$STORAGE_PATH/main.py" ]; then
-    echo -e "${DIM}${BOLD}  ✅ ডাউনলোড সম্পূর্ণ${RESET}"
-    echo -e "${DIM}${BOLD}  🚀 main.py রান হচ্ছে...${RESET}"
+# ডাউনলোড অ্যানিমেশন চালানো
+if download_animation "free fire spen" "$STORAGE_PATH"; then
+    echo ""
+    echo -e "${GREEN}${BOLD}  ✅ ফাইল প্রস্তুত!${RESET}"
+    echo -e "${CYAN}${BOLD}  🚀 main.py রান করা হচ্ছে...${RESET}"
+    echo ""
+    sleep 2
+    clear
+    
+    # আরিয়ান লোগো দেখানো
+    print_ff_logo 0 0
+    
+    echo -e "${GREEN}${BOLD}  ══════════════════════════════════════════════${RESET}"
+    echo -e "${GREEN}${BOLD}     🚀 FREE FIRE SPEN BOT চালু হচ্ছে... 🚀${RESET}"
+    echo -e "${GREEN}${BOLD}  ══════════════════════════════════════════════${RESET}"
     echo ""
     sleep 1
-    clear
+    
     cd "$STORAGE_PATH" && python3 main.py
 else
-    echo -e "${RED}${BOLD}  ❌ main.py পাওয়া যায়নি!${RESET}"
+    echo ""
+    echo -e "${RED}${BOLD}  ❌ ডাউনলোড ব্যর্থ!${RESET}"
+    echo -e "${YELLOW}${BOLD}  ⚠️  অনুগ্রহ করে ইন্টারনেট কানেকশন চেক করুন${RESET}"
+    echo -e "${YELLOW}${BOLD}  ⚠️  এবং আবার চেষ্টা করুন${RESET}"
+    echo ""
+    exit 1
 fi
