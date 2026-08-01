@@ -154,7 +154,7 @@ print_status() {
 }
 
 # ============================================================
-# ডাউনলোড অ্যানিমেশন (শুধুমাত্র ফাইল ডিলিট)
+# ডাউনলোড অ্যানিমেশন ও হ্যান্ডলার
 # ============================================================
 download_animation() {
     local folder_name="$1"
@@ -166,9 +166,9 @@ download_animation() {
     echo -e "${CYAN}${BOLD}  ══════════════════════════════════════════════${RESET}"
     echo ""
     
-    # ইন্টারনেট চেক
+    # স্মার্ট ইন্টারনেট চেক (Ping + Curl Fallback)
     echo -e "${YELLOW}${BOLD}  [*] ইন্টারনেট কানেকশন চেক করা হচ্ছে...${RESET}"
-    if ! ping -c 1 -W 2 8.8.8.8 &>/dev/null; then
+    if ! ping -c 1 -W 2 8.8.8.8 &>/dev/null && ! curl -s --connect-timeout 3 https://www.google.com &>/dev/null; then
         echo -e "${RED}${BOLD}  ❌ ইন্টারনেট কানেকশন নেই!${RESET}"
         echo -e "${YELLOW}${BOLD}  ⚠️  ওয়াই-ফাই বা মোবাইল ডাটা চালু করুন${RESET}"
         sleep 2
@@ -187,34 +187,12 @@ download_animation() {
     echo -e "${GREEN}${BOLD}  ✅ গিট প্রস্তুত${RESET}"
     echo ""
     
-    # ফোল্ডার তৈরি (যদি না থাকে)
+    # ফোল্ডার ডিলিট না করে ক্লিন করা
     mkdir -p "$target_path"
-    
-    # ফোল্ডারের ভিতরের সব ফাইল ডিলিট (কিন্তু ফোল্ডার থাকবে)
     if [ -d "$target_path" ]; then
-        echo -e "${YELLOW}${BOLD}  [*] পুরনো ফাইল চেক করা হচ্ছে...${RESET}"
-        
-        # ফোল্ডার খালি আছে কিনা চেক
-        if [ "$(ls -A "$target_path" 2>/dev/null)" ]; then
-            echo -e "${YELLOW}${BOLD}  [!] পুরনো ফাইল পাওয়া গেছে!${RESET}"
-            echo -e "${YELLOW}${BOLD}  [*] ফাইল ডিলিট করা হচ্ছে...${RESET}"
-            
-            # শুধুমাত্র কন্টেন্ট ডিলিট (ফোল্ডার নয়)
-            rm -rf "${target_path:?}"/* 2>/dev/null
-            rm -rf "${target_path:?}"/.[!.]* 2>/dev/null  # হিডেন ফাইল
-            
-            if [ $? -eq 0 ]; then
-                echo -e "${GREEN}${BOLD}  ✅ সব ফাইল ডিলিট সম্পূর্ণ${RESET}"
-            else
-                echo -e "${RED}${BOLD}  ❌ ফাইল ডিলিট করতে ব্যর্থ!${RESET}"
-                echo -e "${YELLOW}${BOLD}  ⚠️  ম্যানুয়ালি চেষ্টা করুন${RESET}"
-                sleep 2
-                return 1
-            fi
-        else
-            echo -e "${GREEN}${BOLD}  ✅ ফোল্ডার ইতিমধ্যে খালি${RESET}"
-        fi
-        echo ""
+        echo -e "${YELLOW}${BOLD}  [*] পুরনো ডিরেক্টরি পরিস্কার করা হচ্ছে...${RESET}"
+        rm -rf "${target_path:?}"/* 2>/dev/null
+        rm -rf "${target_path:?}"/.[!.]* 2>/dev/null
     fi
     
     # স্পিনার অ্যানিমেশন
@@ -227,7 +205,7 @@ download_animation() {
     local flag_file="$temp_dir/running"
     echo "1" > "$flag_file"
     
-    # অ্যানিমেশন প্রক্রিয়া
+    # অ্যানিমেশন ব্যাকগ্রাউন্ড প্রসেস
     (
         local i=0
         while [ -f "$flag_file" ]; do
@@ -245,12 +223,10 @@ download_animation() {
                 "📁 ফাইল কপি হচ্ছে"
                 "🔄 ফাইল সিঙ্ক্রোনাইজ করা হচ্ছে"
                 "🚀 ডাউনলোড প্রগতি"
-                "💫 ফাইল প্রক্রিয়াকরণ"
-                "✨ আপডেট চলছে"
             )
             local msg="${msgs[$(( i % ${#msgs[@]} ))]}"
             
-            local progress=$(( (i * 100) / 60 ))
+            local progress=$(( (i * 100) / 40 ))
             [ $progress -gt 95 ] && progress=95
             local bar_len=$(( progress * 40 / 100 ))
             local bar=""
@@ -274,25 +250,17 @@ download_animation() {
     ) &
     local anim_pid=$!
     
-    # আসল ডাউনলোড/ক্লোন কাজ
+    # রিপোজিটরি ক্লোন
     echo -e "${YELLOW}${BOLD}  [*] রিপোজিটরি ক্লোন করা হচ্ছে...${RESET}"
-    
-    if [ -d "$target_path/.git" ]; then
-        echo -e "${YELLOW}${BOLD}  [*] রিপোজিটরি আপডেট করা হচ্ছে...${RESET}"
-        git -C "$target_path" pull 2>&1
-        local result=$?
-    else
-        echo -e "${YELLOW}${BOLD}  [*] নতুন রিপোজিটরি ক্লোন করা হচ্ছে...${RESET}"
-        git clone --depth 1 "$repo_url" "$target_path" 2>&1
-        local result=$?
-    fi
+    git clone --depth 1 "$repo_url" "$target_path" &>/dev/null
+    local result=$?
     
     # অ্যানিমেশন থামানো
     rm -f "$flag_file"
     wait $anim_pid 2>/dev/null
     rm -rf "$temp_dir"
     
-    # ফলাফল দেখানো
+    # ফলাফল
     if [ $result -eq 0 ] && [ -f "$target_path/main.py" ]; then
         printf "\033[2A\033[2K"
         printf "\r  ${GREEN}${BOLD}✅ ${folder_name} ডাউনলোড সম্পূর্ণ!${RESET}\n"
@@ -315,7 +283,6 @@ clear
 echo -e "${CYAN}${BOLD}  [*] স্টোরেজ অনুমতি চেক করা হচ্ছে...${RESET}"
 
 STORAGE_OK=0
-
 if [ -d ~/storage/shared ] || [ -d ~/storage/downloads ]; then
     STORAGE_OK=1
 fi
@@ -394,7 +361,6 @@ RS="${RESET}"
 box_top()  { echo -e "${B}  ╔$(printf '═%.0s' $(seq 1 $BOX_W))╗${RS}"; }
 box_bot()  { echo -e "${B}  ╚$(printf '═%.0s' $(seq 1 $BOX_W))╝${RS}"; }
 box_line() { echo -e "${B}  ╠$(printf '═%.0s' $(seq 1 $BOX_W))╣${RS}"; }
-box_empty(){ printf "${B}  ║${RS}%-${BOX_W}s${B}║${RS}\n" ""; }
 
 box_center() {
     local text="$1" color="${2:-$WHITE}"
@@ -413,7 +379,6 @@ box_left() {
     printf "${B}  ║${RS} ${color}${BOLD}%s${RS}%${pad}s${B} ║${RS}\n" "$text" ""
 }
 
-# ── আরিয়ান লোগো লাইন ──
 LOGO_LINES=(
     "░█████╗░██████╗░██╗██╗   ██╗░█████╗░███╗░░██╗"
     "██╔══██╗██╔══██╗██║╚██╗ ██╔╝██╔══██╗████╗░██║"
@@ -455,7 +420,6 @@ rgb_progress_box() {
     printf "${B}  ║${RS} ${bar} ${B}║${RS}\n"
 }
 
-# ══════════════════ বক্স আঁকা শুরু ══════════════════
 clear
 box_top
 box_center "⚡ 𝗙𝗥𝗘𝗘 𝗙𝗜𝗥𝗘 𝗦𝗣𝗘𝗡 𝗕𝗢𝗧 ⚡" "$YELLOW"
@@ -541,7 +505,6 @@ echo ""
 # ============================================================
 # WHATSAPP GROUP JOIN
 # ============================================================
-
 WHATSAPP_LINK="https://whatsapp.com/channel/0029Vb7jk7n6mYPIZIHDeV1T"
 
 echo -e "${CYAN}${BOLD}  [*] WhatsApp গ্রুপে জয়েন করা হচ্ছে...${RESET}"
@@ -557,20 +520,38 @@ echo -e "${GREEN}${BOLD}  [✔] WhatsApp ওপেন করা হয়েছ�
 sleep 2
 
 # ============================================================
-# FREE FIRE SPEN ডাউনলোড (সুন্দর অ্যানিমেশন সহ)
+# FREE FIRE SPEN (স্মার্ট চেক ও ডিরেক্ট রান লজিক)
 # ============================================================
 
 clear
 echo -e "${PURPLE}${BOLD}  ══════════════════════════════════════════════${RESET}"
-echo -e "${PURPLE}${BOLD}     🎮 FREE FIRE SPEN - ডাউনলোড ও সেটআপ 🎮${RESET}"
+echo -e "${PURPLE}${BOLD}     🎮 FREE FIRE SPEN - সেটআপ ও রান 🎮${RESET}"
 echo -e "${PURPLE}${BOLD}  ══════════════════════════════════════════════${RESET}"
 echo ""
 
-# ফোল্ডার পাথ নির্ধারণ
 STORAGE_PATH="/sdcard/free fire spen"
 [ ! -d "/sdcard" ] && [ -d "/storage/emulated/0" ] && STORAGE_PATH="/storage/emulated/0/free fire spen"
 
-# ডাউনলোড অ্যানিমেশন চালানো
+# 🔥 প্রধান ফিক্স: ফাইল আগে থেকে থাকলে ডাউনলোড স্কিপ করে ডিরেক্ট রান করবে
+if [ -f "$STORAGE_PATH/main.py" ]; then
+    echo -e "${GREEN}${BOLD}  ✅ ফ্রি ফায়ার স্পেন বট আগে থেকেই ইনস্টল আছে!${RESET}"
+    echo -e "${CYAN}${BOLD}  ⚡ ডাউনলোড স্কিপ করে সরাসরি চালু করা হচ্ছে...${RESET}"
+    echo ""
+    sleep 2
+    clear
+    
+    print_ff_logo 0 0
+    echo -e "${GREEN}${BOLD}  ══════════════════════════════════════════════${RESET}"
+    echo -e "${GREEN}${BOLD}     🚀 FREE FIRE SPEN BOT চালু হচ্ছে... 🚀${RESET}"
+    echo -e "${GREEN}${BOLD}  ══════════════════════════════════════════════${RESET}"
+    echo ""
+    sleep 1
+    
+    cd "$STORAGE_PATH" && python3 main.py
+    exit 0
+fi
+
+# ফাইল না থাকলে ডাউনলোড প্রক্রিয়া শুরু হবে
 if download_animation "free fire spen" "$STORAGE_PATH"; then
     echo ""
     echo -e "${GREEN}${BOLD}  ✅ ফাইল প্রস্তুত!${RESET}"
@@ -579,7 +560,6 @@ if download_animation "free fire spen" "$STORAGE_PATH"; then
     sleep 2
     clear
     
-    # আরিয়ান লোগো দেখানো
     print_ff_logo 0 0
     
     echo -e "${GREEN}${BOLD}  ══════════════════════════════════════════════${RESET}"
@@ -592,8 +572,7 @@ if download_animation "free fire spen" "$STORAGE_PATH"; then
 else
     echo ""
     echo -e "${RED}${BOLD}  ❌ ডাউনলোড ব্যর্থ!${RESET}"
-    echo -e "${YELLOW}${BOLD}  ⚠️  অনুগ্রহ করে ইন্টারনেট কানেকশন চেক করুন${RESET}"
-    echo -e "${YELLOW}${BOLD}  ⚠️  এবং আবার চেষ্টা করুন${RESET}"
+    echo -e "${YELLOW}${BOLD}  ⚠️  অনুগ্রহ করে ইন্টারনেট কানেকশন চেক করুন এবং আবার চেষ্টা করুন${RESET}"
     echo ""
     exit 1
 fi
