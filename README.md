@@ -1,48 +1,81 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:FF0000,20:FF6600,40:FFFF00,60:00FF00,80:00FFFF,100:8000FF&height=260&section=header&text=⚡%20ARIYAN%20VIP%20⚡&fontSize=60&fontColor=ffffff&animation=fade&fontAlignY=38"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&height=300&color=0:00ff41,25:00cc33,50:009922,75:006611,100:002200&text=👑%20ARIYAN%20VIP%20👑&fontSize=60&fontColor=00ff41&animation=twinkling"/>
 
-<img src="https://readme-typing-svg.demolab.com?font=Orbitron&weight=900&size=34&pause=1000&color=FF0000&center=true&vCenter=true&width=1000&lines=🔥+WELCOME+TO+ARIYAN+VIP+🔥;⚡+FREE+FIRE+PREMIUM+GENERATOR+⚡;🚀+ULTRA+FAST+SYSTEM+🚀;💎+PREMIUM+TOOLS+💎;❤️+THANKS+FOR+VISITING+❤️"/>
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=30&duration=1800&pause=800&color=00FF41&center=true&vCenter=true&width=1000&lines=root@ariyan:~$+booting...;Loading+Security+Protocol...;Starting+Matrix+Engine...;Access+Granted...;WELCOME+TO+ARIYAN+VIP"/>
 
-<p>
-<img src="https://img.shields.io/badge/STATUS-ACTIVE-success?style=for-the-badge"/>
-<img src="https://img.shields.io/badge/VERSION-2026-red?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/STATUS-ONLINE-brightgreen?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/SECURITY-HIGH-red?style=for-the-badge"/>
 <img src="https://img.shields.io/badge/OWNER-ARIYAN-blue?style=for-the-badge"/>
-<img src="https://img.shields.io/badge/VIP-TRUE-gold?style=for-the-badge"/>
-</p>
+<img src="https://img.shields.io/badge/ACCESS-VIP-gold?style=for-the-badge"/>
+
+</div>
 
 ---
 
-# 👑 ARIYAN VIP 👑
+# 💻 TERMINAL
 
-💎 Premium Project  
-⚡ High Speed Generator  
-🛡 Secure System  
-🚀 Daily Update  
-🔥 Best Performance
+```bash
+┌──(root㉿ariyan)-[/home]
+└─$ whoami
+Ariyan
+
+┌──(root㉿ariyan)-[/home]
+└─$ systemctl status
+
+✔ Firewall ............. ACTIVE
+✔ Encryption ........... ENABLED
+✔ Matrix Engine ........ RUNNING
+✔ VIP Access ........... GRANTED
+✔ Security Level ....... MAXIMUM
+```
 
 ---
 
-<img src="https://github-profile-summary-cards.vercel.app/api/cards/profile-details?username=Ariyan20267&theme=radical"/>
+# 📊 DASHBOARD
 
-<img src="https://github-readme-stats.vercel.app/api?username=Ariyan20267&show_icons=true&theme=tokyonight"/>
-
-<img src="https://github-readme-streak-stats.herokuapp.com/?user=Ariyan20267&theme=tokyonight"/>
-
-<img src="https://github-profile-trophy.vercel.app/?username=Ariyan20267&theme=radical&no-frame=true&margin-w=15"/>
+| Feature | Status |
+|---------|--------|
+| 🛡 Firewall | ✅ |
+| 🔥 Performance | ✅ |
+| 🚀 Speed | ✅ |
+| 💎 Premium | ✅ |
+| ⚡ Hacker Mode | ✅ |
 
 ---
 
-## ⚔️ VIP FEATURES ⚔️
+<img src="https://github-readme-stats.vercel.app/api?username=Ariyan20267&show_icons=true&theme=chartreuse-dark"/>
 
-✔ Premium UI  
-✔ Fast Response  
-✔ Secure Generator  
-✔ Unlimited Access  
-✔ Daily Maintenance  
-✔ Easy To Use  
-✔ Professional Support  
-✔ Modern Design
+<img src="https://github-readme-streak-stats.herokuapp.com/?user=Ariyan20267&theme=chartreuse-dark"/>
+
+<img src="https://github-profile-trophy.vercel.app/?username=Ariyan20267&theme=matrix&no-frame=true"/>
+
+---
+
+## 🛠 TOOLS
+
+- Kali Linux
+- Termux
+- Python
+- Bash
+- Git
+- GitHub
+- Linux
+- VS Code
+- Docker
+
+---
+
+## ⚙ SYSTEM INFO
+
+```yaml
+OS: Linux
+Kernel: 6.x
+Shell: Bash
+Editor: VS Code
+Status: Online
+Mode: Hacker VIP
+```
 
 ---
 
@@ -50,6 +83,12 @@
 
 ---
 
-<img src="https://capsule-render.vercel.app/api?type=waving&section=footer&color=0:8000FF,50:FF0000,100:00FFFF&height=180"/>
+<div align="center">
+
+### 👑 ARIYAN VIP 👑
+
+> Think • Build • Learn
+
+<img src="https://capsule-render.vercel.app/api?type=waving&section=footer&height=180&color=0:003300,50:00ff41,100:003300"/>
 
 </div>
