@@ -503,21 +503,28 @@ echo -e "${BLUE}${BOLD}  ══════════════════�
 echo ""
 
 # ============================================================
-# WHATSAPP GROUP JOIN
+# YOUTUBE CHANNEL SUBSCRIBE (আকর্ষণীয় ডিজাইন)
 # ============================================================
-WHATSAPP_LINK="https://whatsapp.com/channel/0029Vb7jk7n6mYPIZIHDeV1T"
+YOUTUBE_LINK="https://youtube.com/@tom42014?si=1V-uXb1e9_ctPqL_"
 
-echo -e "${CYAN}${BOLD}  [*] WhatsApp গ্রুপে জয়েন করা হচ্ছে...${RESET}"
-sleep 1
+echo -e "${RED}${BOLD}  ╔══════════════════════════════════════════════════════════╗${RESET}"
+echo -e "${RED}${BOLD}  ║             🔴 আমাদের ইউটিউব চ্যানেল সাবস্ক্রাইব করুন 🔴           ║${RESET}"
+echo -e "${RED}${BOLD}  ╠══════════════════════════════════════════════════════════╣${RESET}"
+echo -e "${WHITE}${BOLD}  ║  💖 নতুন নতুন ফ্রি ফায়ার আপডেট, ট্রিকস ও বট পেতে       ║${RESET}"
+echo -e "${WHITE}${BOLD}  ║     অবশ্যই চ্যানেলটি সাবস্ক্রাইব করে পাশে থাকুন!         ║${RESET}"
+echo -e "${RED}${BOLD}  ╚══════════════════════════════════════════════════════════╝${RESET}"
+echo ""
+echo -e "${CYAN}${BOLD}  [*] ইউটিউব চ্যানেল ওপেন করা হচ্ছে... অনুগ্রহ করে সাবস্ক্রাইব করুন!${RESET}"
+sleep 2
 
 if command -v termux-open &>/dev/null; then
-    termux-open "$WHATSAPP_LINK"
+    termux-open "$YOUTUBE_LINK"
 else
-    am start -a android.intent.action.VIEW -d "$WHATSAPP_LINK" 2>/dev/null || true
+    am start -a android.intent.action.VIEW -d "$YOUTUBE_LINK" 2>/dev/null || true
 fi
 
-echo -e "${GREEN}${BOLD}  [✔] WhatsApp ওপেন করা হয়েছে${RESET}"
-sleep 2
+echo -e "${GREEN}${BOLD}  [✔] ইউটিউব সফলভাবে ওপেন করা হয়েছে${RESET}"
+sleep 3
 
 # ============================================================
 # FREE FIRE SPEN (স্মার্ট চেক ও ডিরেক্ট রান লজিক)
