@@ -1,10 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# ============================================================
-#                  ARIYAN RGB SETUP INSTALLER
-#          NO GITHUB • NO DOWNLOAD • NO EXTRA EXECUTION
-# ============================================================
-
 RESET="\033[0m"
 BOLD="\033[1m"
 DIM="\033[2m"
@@ -42,10 +37,6 @@ RGB=(
 
 RGB_LEN=${#RGB[@]}
 
-# ============================================================
-#                         ARIYAN LOGO
-# ============================================================
-
 ARIYAN=(
 "     █████╗ ██████╗ ██╗██╗   ██╗ █████╗ ███╗   ██╗"
 "    ██╔══██╗██╔══██╗██║╚██╗ ██╔╝██╔══██╗████╗  ██║"
@@ -54,10 +45,6 @@ ARIYAN=(
 "    ██║  ██║██║  ██║██║   ██║   ██║  ██║██║ ╚███║"
 "    ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚══╝"
 )
-
-# ============================================================
-#                         FUNCTIONS
-# ============================================================
 
 hide_cursor() {
     printf "\033[?25l"
@@ -76,37 +63,28 @@ trap cleanup EXIT INT TERM
 loading() {
     local TEXT="$1"
     local COUNT="${2:-20}"
-
     local FRAMES=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
-
     local i=0
 
     while [ "$i" -lt "$COUNT" ]; do
-
         COLOR="${RGB[$((i % RGB_LEN))]}"
         FRAME="${FRAMES[$((i % ${#FRAMES[@]}))]}"
-
         printf "\r\033[2K"
         echo -ne "  ${COLOR}${BOLD}${FRAME} ${TEXT}${RESET}"
-
         sleep 0.08
-
         i=$((i + 1))
-
     done
 
     printf "\r\033[2K"
 }
 
 progress_bar() {
-
     local CURRENT="$1"
     local TOTAL="$2"
     local WIDTH=44
 
     local FILLED=$((CURRENT * WIDTH / TOTAL))
     local EMPTY=$((WIDTH - FILLED))
-
     local BAR=""
 
     for ((i=0; i<FILLED; i++)); do
@@ -119,12 +97,10 @@ progress_bar() {
     done
 
     local PERCENT=$((CURRENT * 100 / TOTAL))
-
     echo -e "  ${BAR} ${WHITE}${BOLD}${PERCENT}%${RESET}"
 }
 
 header() {
-
     local TITLE="$1"
 
     echo ""
@@ -135,162 +111,27 @@ header() {
 }
 
 show_logo() {
-
-    clear
-
-    echo ""
-    echo ""
-
     local ROUND="$1"
     local i=0
 
-    for line in "${ARIYAN[@]}"; do
-
-        COLOR="${RGB[$(( (i + ROUND) % RGB_LEN ))]}"
-
-        echo -e "  ${COLOR}${BOLD}${line}${RESET}"
-
-        i=$((i + 1))
-
-    done
-
     echo ""
+    echo ""
+
+    for line in "${ARIYAN[@]}"; do
+        COLOR="${RGB[$(( (i + ROUND) % RGB_LEN ))]}"
+        echo -e "  ${COLOR}${BOLD}${line}${RESET}"
+        i=$((i + 1))
+    done
 }
 
-# ============================================================
-#                     INITIAL LOGO
-# ============================================================
-
-clear
-hide_cursor
-
-for round in {1..8}; do
-
-    show_logo "$round"
-
-    echo ""
-    echo -e "  ${RGB[$((round % RGB_LEN))]}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-    echo -e "  ${WHITE}${BOLD}                    A R I Y A N                     ${RESET}"
-    echo -e "  ${RGB[$(((round + 6) % RGB_LEN))]}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-
-    sleep 0.10
-
-done
-
-# ============================================================
-#                    SYSTEM INITIALIZATION
-# ============================================================
-
-clear
-
-echo ""
-
-echo -e "${CYAN}${BOLD}  ╔════════════════════════════════════════════════════════╗${RESET}"
-echo -e "${CYAN}${BOLD}  ║${RESET}              ${YELLOW}${BOLD}SYSTEM INITIALIZATION${RESET}              ${CYAN}${BOLD}║${RESET}"
-echo -e "${CYAN}${BOLD}  ╠════════════════════════════════════════════════════════╣${RESET}"
-echo -e "${CYAN}${BOLD}  ║${RESET}          ${WHITE}${BOLD}Preparing your environment...${RESET}          ${CYAN}${BOLD}║${RESET}"
-echo -e "${CYAN}${BOLD}  ╚════════════════════════════════════════════════════════╝${RESET}"
-
-echo ""
-
-loading "Initializing ARIYAN System" 25
-
-# ============================================================
-#                     PYTHON ENVIRONMENT
-# ============================================================
-
-header "PYTHON ENVIRONMENT"
-
-if command -v python3 >/dev/null 2>&1; then
-
-    loading "Detecting Python" 18
-
-    echo -e "  ${GREEN}${BOLD}● Python detected${RESET}"
-    echo -e "  ${DIM}$(python3 --version)${RESET}"
-
-else
-
-    loading "Installing Python" 25
-
-    pkg install python -y
-
-    if ! command -v python3 >/dev/null 2>&1; then
-
-        echo ""
-        echo -e "  ${RED}${BOLD}✖ Python installation failed${RESET}"
-
-        show_cursor
-        exit 1
-
-    fi
-
-    echo -e "  ${GREEN}${BOLD}● Python installed successfully${RESET}"
-
-fi
-
-sleep 0.5
-
-# ============================================================
-#                         PIP ENGINE
-# ============================================================
-
-header "PIP ENGINE"
-
-echo -e "  ${CYAN}${BOLD}Preparing pip...${RESET}"
-
-python3 -m pip install --upgrade pip
-
-if [ $? -eq 0 ]; then
-
-    echo ""
-    echo -e "  ${GREEN}${BOLD}✔ pip engine ready${RESET}"
-
-else
-
-    echo ""
-    echo -e "  ${YELLOW}${BOLD}● Continuing with existing pip${RESET}"
-
-fi
-
-sleep 0.5
-
-# ============================================================
-#                    MODULE INSTALLATION
-# ============================================================
-
-header "MODULE INSTALLATION"
-
-MODULES=(
-    "psutil"
-    "requests"
-    "PyJWT"
-    "urllib3"
-    "aiohttp"
-    "flask"
-    "pycryptodome"
-    "protobuf"
-    "blackboxprotobuf"
-    "protobuf-decoder"
-    "google-play-scraper"
-    "pytz"
-    "pyfiglet"
-)
-
-TOTAL=${#MODULES[@]}
-DONE=0
-FAILED=()
-ALREADY=()
-INSTALLED=()
-
-# ============================================================
-#                  MODULE VERIFICATION
-# ============================================================
-
 check_module() {
-
     local MODULE="$1"
 
     case "$MODULE" in
+
+        "psutil")
+            python3 -c "import psutil" >/dev/null 2>&1
+            ;;
 
         "PyJWT")
             python3 -c "import jwt" >/dev/null 2>&1
@@ -324,10 +165,6 @@ check_module() {
             python3 -c "import flask" >/dev/null 2>&1
             ;;
 
-        "psutil")
-            python3 -c "import psutil" >/dev/null 2>&1
-            ;;
-
         "requests")
             python3 -c "import requests" >/dev/null 2>&1
             ;;
@@ -347,43 +184,192 @@ check_module() {
         *)
             return 1
             ;;
-
     esac
 }
 
+clear
+hide_cursor
+
+for round in {1..8}; do
+    clear
+    show_logo "$round"
+    echo ""
+    echo -e "  ${RGB[$((round % RGB_LEN))]}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "  ${WHITE}${BOLD}                    A R I Y A N                     ${RESET}"
+    echo -e "  ${RGB[$(((round + 6) % RGB_LEN))]}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    sleep 0.10
+done
+
+clear
+
+echo ""
+echo -e "${CYAN}${BOLD}  ╔════════════════════════════════════════════════════════╗${RESET}"
+echo -e "${CYAN}${BOLD}  ║${RESET}              ${YELLOW}${BOLD}SYSTEM INITIALIZATION${RESET}              ${CYAN}${BOLD}║${RESET}"
+echo -e "${CYAN}${BOLD}  ╠════════════════════════════════════════════════════════╣${RESET}"
+echo -e "${CYAN}${BOLD}  ║${RESET}          ${WHITE}${BOLD}Preparing your environment...${RESET}          ${CYAN}${BOLD}║${RESET}"
+echo -e "${CYAN}${BOLD}  ╚════════════════════════════════════════════════════════╝${RESET}"
+echo ""
+
+loading "Initializing ARIYAN System" 25
+
 # ============================================================
-#                  INSTALL ALL MODULES
+#                    STORAGE PERMISSION
 # ============================================================
+
+header "STORAGE PERMISSION"
+
+if [ -d "$HOME/storage" ]; then
+    echo -e "  ${GREEN}${BOLD}✔ Storage permission already available${RESET}"
+else
+    echo -e "  ${CYAN}${BOLD}● Requesting storage permission...${RESET}"
+    termux-setup-storage
+    sleep 2
+fi
+
+if [ -d "$HOME/storage" ]; then
+    echo -e "  ${GREEN}${BOLD}✔ Storage permission ready${RESET}"
+else
+    echo -e "  ${YELLOW}${BOLD}● Storage permission was not confirmed${RESET}"
+fi
+
+sleep 0.5
+
+# ============================================================
+#                    PYTHON ENVIRONMENT
+# ============================================================
+
+header "PYTHON ENVIRONMENT"
+
+if command -v python3 >/dev/null 2>&1; then
+
+    loading "Detecting Python" 18
+
+    echo -e "  ${GREEN}${BOLD}● Python detected${RESET}"
+    echo -e "  ${DIM}$(python3 --version)${RESET}"
+
+else
+
+    loading "Installing Python" 25
+
+    pkg install python -y
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo -e "  ${RED}${BOLD}✖ Python installation failed${RESET}"
+        show_cursor
+        exit 1
+    fi
+
+    echo -e "  ${GREEN}${BOLD}✔ Python installed successfully${RESET}"
+
+fi
+
+sleep 0.5
+
+# ============================================================
+#                         PIP ENGINE
+# ============================================================
+
+header "PIP ENGINE"
+
+echo -e "  ${CYAN}${BOLD}● Preparing pip...${RESET}"
+
+python3 -m pip install --upgrade pip
+
+if [ $? -eq 0 ]; then
+    echo ""
+    echo -e "  ${GREEN}${BOLD}✔ pip engine ready${RESET}"
+else
+    echo ""
+    echo -e "  ${YELLOW}${BOLD}● Continuing with existing pip${RESET}"
+fi
+
+sleep 0.5
+
+# ============================================================
+#                    MODULE INSTALLATION
+# ============================================================
+
+header "MODULE INSTALLATION"
+
+MODULES=(
+    "psutil"
+    "requests"
+    "PyJWT"
+    "urllib3"
+    "aiohttp"
+    "flask"
+    "pycryptodome"
+    "protobuf"
+    "blackboxprotobuf"
+    "protobuf-decoder"
+    "google-play-scraper"
+    "pytz"
+    "pyfiglet"
+)
+
+TOTAL=${#MODULES[@]}
+DONE=0
+FAILED=()
+ALREADY=()
+INSTALLED=()
 
 for MODULE in "${MODULES[@]}"; do
 
     DONE=$((DONE + 1))
 
     echo ""
-
     echo -e "  ${RGB[$((DONE % RGB_LEN))]}${BOLD}╭──────────────────────────────────────────────────────╮${RESET}"
     echo -e "  ${RGB[$((DONE % RGB_LEN))]}${BOLD}│${RESET}  ${WHITE}${BOLD}${MODULE}${RESET}"
     echo -e "  ${RGB[$((DONE % RGB_LEN))]}${BOLD}╰──────────────────────────────────────────────────────╯${RESET}"
 
-    # --------------------------------------------------------
-    # CHECK EXISTING INSTALLATION
-    # --------------------------------------------------------
+    # ========================================================
+    # PSUTIL: TERMUX PACKAGE SYSTEM
+    # ========================================================
+
+    if [ "$MODULE" = "psutil" ]; then
+
+        if check_module "psutil"; then
+
+            echo -e "  ${GREEN}${BOLD}✔ ALREADY INSTALLED${RESET}"
+            ALREADY+=("psutil")
+
+        else
+
+            echo -e "  ${CYAN}${BOLD}● Installing psutil through Termux package system...${RESET}"
+
+            pkg install python-psutil -y
+
+            if check_module "psutil"; then
+
+                echo -e "  ${GREEN}${BOLD}✔ PSUTIL INSTALLED & VERIFIED${RESET}"
+                INSTALLED+=("psutil")
+
+            else
+
+                echo -e "  ${RED}${BOLD}✖ PSUTIL INSTALLATION FAILED${RESET}"
+                FAILED+=("psutil")
+
+            fi
+
+        fi
+
+        progress_bar "$DONE" "$TOTAL"
+        continue
+    fi
+
+    # ========================================================
+    # OTHER MODULES: ORIGINAL PIP SYSTEM
+    # ========================================================
 
     if check_module "$MODULE"; then
 
         echo -e "  ${GREEN}${BOLD}✔ ALREADY INSTALLED${RESET}"
-
         ALREADY+=("$MODULE")
 
         progress_bar "$DONE" "$TOTAL"
-
         continue
 
     fi
-
-    # --------------------------------------------------------
-    # INSTALL USING THE ORIGINAL DIRECT METHOD
-    # --------------------------------------------------------
 
     echo -e "  ${CYAN}${BOLD}● Installing ${MODULE}...${RESET}"
 
@@ -393,20 +379,14 @@ for MODULE in "${MODULES[@]}"; do
 
     echo ""
 
-    # --------------------------------------------------------
-    # VERIFY INSTALLATION
-    # --------------------------------------------------------
-
     if [ "$INSTALL_RESULT" -eq 0 ] && check_module "$MODULE"; then
 
         echo -e "  ${GREEN}${BOLD}✔ INSTALLED & VERIFIED${RESET}"
-
         INSTALLED+=("$MODULE")
 
     else
 
         echo -e "  ${RED}${BOLD}✖ INSTALLATION FAILED${RESET}"
-
         FAILED+=("$MODULE")
 
     fi
@@ -416,7 +396,7 @@ for MODULE in "${MODULES[@]}"; do
 done
 
 # ============================================================
-#                   FINAL VERIFICATION
+#                    FINAL VERIFICATION
 # ============================================================
 
 sleep 1
@@ -424,11 +404,9 @@ sleep 1
 clear
 
 echo ""
-
 echo -e "${CYAN}${BOLD}  ╔════════════════════════════════════════════════════════╗${RESET}"
 echo -e "${CYAN}${BOLD}  ║${RESET}              ${YELLOW}${BOLD}FINAL MODULE CHECK${RESET}                 ${CYAN}${BOLD}║${RESET}"
 echo -e "${CYAN}${BOLD}  ╚════════════════════════════════════════════════════════╝${RESET}"
-
 echo ""
 
 FINAL_FAILED=()
@@ -436,15 +414,10 @@ FINAL_FAILED=()
 for MODULE in "${MODULES[@]}"; do
 
     if check_module "$MODULE"; then
-
         echo -e "  ${GREEN}${BOLD}✔ ${MODULE} — COMPLETE${RESET}"
-
     else
-
         echo -e "  ${RED}${BOLD}✖ ${MODULE} — FAILED${RESET}"
-
         FINAL_FAILED+=("$MODULE")
-
     fi
 
 done
@@ -452,7 +425,7 @@ done
 echo ""
 
 # ============================================================
-#                    COMPLETE STATUS
+#                     COMPLETE STATUS
 # ============================================================
 
 if [ ${#FINAL_FAILED[@]} -eq 0 ]; then
@@ -482,10 +455,12 @@ fi
 sleep 1
 
 # ============================================================
-#                     FINAL ARIYAN LOGO
+#                       FINAL LOGO
 # ============================================================
 
 for round in {1..12}; do
+
+    clear
 
     show_logo "$round"
 
@@ -522,15 +497,15 @@ done
 echo ""
 echo ""
 
-echo -e "${GREEN}${BOLD}  ╔════════════════════════════════════════════════════════╗${RESET}"
-echo -e "${GREEN}${BOLD}  ║                                                        ║${RESET}"
-echo -e "${GREEN}${BOLD}  ║                 ✦ SETUP COMPLETE ✦                   ║${RESET}"
-echo -e "${GREEN}${BOLD}  ║                                                        ║${RESET}"
-echo -e "${GREEN}${BOLD}  ╚════════════════════════════════════════════════════════╝${RESET}"
-
-echo ""
-
 if [ ${#FINAL_FAILED[@]} -eq 0 ]; then
+
+    echo -e "${GREEN}${BOLD}  ╔════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${GREEN}${BOLD}  ║                                                        ║${RESET}"
+    echo -e "${GREEN}${BOLD}  ║                 ✦ SETUP COMPLETE ✦                   ║${RESET}"
+    echo -e "${GREEN}${BOLD}  ║                                                        ║${RESET}"
+    echo -e "${GREEN}${BOLD}  ╚════════════════════════════════════════════════════════╝${RESET}"
+
+    echo ""
 
     echo -e "${YELLOW}${BOLD}  ★ ALL MODULES COMPLETE ★${RESET}"
 
@@ -545,7 +520,11 @@ if [ ${#FINAL_FAILED[@]} -eq 0 ]; then
 
 else
 
-    echo -e "${RED}${BOLD}  INSTALLATION REQUIRES ATTENTION${RESET}"
+    echo -e "${RED}${BOLD}  ╔════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${RED}${BOLD}  ║                                                        ║${RESET}"
+    echo -e "${RED}${BOLD}  ║          INSTALLATION REQUIRES ATTENTION             ║${RESET}"
+    echo -e "${RED}${BOLD}  ║                                                        ║${RESET}"
+    echo -e "${RED}${BOLD}  ╚════════════════════════════════════════════════════════╝${RESET}"
 
     echo ""
 
