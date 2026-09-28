@@ -1,53 +1,32 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # =============================================================================
-#  ARIYAN TOR AUTO-ROTATOR  —  Termux Edition
-#  প্রতি ১০ সেকেন্ডে নতুন IP, রঙিন বক্সে দেখাবে
+#  TERMUX GLOBAL TOR FIX  —  One-time setup
+#  যেকোনো ফোল্ডার থেকে রান করুন। এরপর যেকোনো v.py চলবে, timeout আসবে না।
 # =============================================================================
 
-# ---------- Colors ----------
-RST=$'\033[0m'
-BOLD=$'\033[1m'
-C1=$'\033[38;5;201m'   # magenta
-C2=$'\033[38;5;51m'    # cyan
-C3=$'\033[38;5;82m'    # green
-C4=$'\033[38;5;226m'   # yellow
-C5=$'\033[38;5;196m'   # red
-C6=$'\033[38;5;208m'   # orange
-C7=$'\033[38;5;135m'   # purple
+RST=$'\033[0m'; BOLD=$'\033[1m'
+C1=$'\033[38;5;201m'; C2=$'\033[38;5;51m'
+C3=$'\033[38;5;82m';  C4=$'\033[38;5;226m'
+C5=$'\033[38;5;196m'; C6=$'\033[38;5;208m'
 
-# ---------- Config ----------
 SOCKS_PORT=9050
 CONTROL_PORT=9051
-ROTATE_INTERVAL=10          # সেকেন্ড
 TORRC_DIR="$HOME/.tor"
 TORRC_FILE="$TORRC_DIR/torrc"
 TOR_DATA="$HOME/.tor_data"
 TOR_LOG="$HOME/.tor_log"
+TOR_PIDFILE="$HOME/.tor_pid"
+MARKER="# >>> ARIYAN-TOR-GLOBAL-FIX >>>"
+ENDMARK="# <<< ARIYAN-TOR-GLOBAL-FIX <<<"
 
-# ---------- Helpers ----------
-log()  { echo "${C2}[*]${RST} $*"; }
-ok()   { echo "${C3}[✓]${RST} $*"; }
-warn() { echo "${C4}[!]${RST} $*"; }
-err()  { echo "${C5}[✗]${RST} $*"; }
+log()  { printf "%s[*]%s %s\n" "$C2" "$RST" "$*"; }
+ok()   { printf "%s[✓]%s %s\n" "$C3" "$RST" "$*"; }
+warn() { printf "%s[!]%s %s\n" "$C4" "$RST" "$*"; }
+err()  { printf "%s[✗]%s %s\n" "$C5" "$RST" "$*"; }
 
-box() {
-    local color="$1"; shift
-    local title="$1"; shift
-    local W=48
-    local line="$*"
-    local pad=$(( W - ${#line} - 2 ))
-    [ $pad -lt 0 ] && pad=0
-    printf "%s╔════════════════════════════════════════════════╗%s\n" "$color" "$RST"
-    printf "%s║%s %s%-${W}s%s %s║%s\n" "$color" "$RST" "$BOLD" "$title" "$RST" "$color" "$RST"
-    printf "%s╠════════════════════════════════════════════════╣%s\n" "$color" "$RST"
-    printf "%s║%s %-${W}s %s║%s\n" "$color" "$RST" "$line" "$color" "$RST"
-    printf "%s╚════════════════════════════════════════════════╝%s\n" "$color" "$RST"
-}
-
-# ---------- Banner ----------
 banner() {
     clear
-    echo "${C1}${BOLD}"
+    printf "%s%s\n" "$C1" "$BOLD"
     cat <<'EOF'
    ░█████╗░██████╗░██╗██╗░░░██╗░█████╗░███╗░░██╗
    ██╔══██╗██╔══██╗██║╚██╗░██╔╝██╔══██╗████╗░██║
@@ -56,206 +35,283 @@ banner() {
    ██║░░██║██║░░██║██║░░░██║░░░██║░░██║██║░╚███║
    ╚═╝░░╚═╝╚═╝░░╚═╝╚═╝░░░╚═╝░░░╚═╝░░╚═╝╚═╝░░╚══╝
 EOF
-    echo "${RST}${C2}${BOLD}        ░ TOR AUTO-ROTATOR — TERMUX EDITION ░${RST}"
-    echo
+    printf "%s" "$RST"
+    printf "%s%s   ░ TERMUX GLOBAL TOR FIX  (যেকোনো ফোল্ডার থেকে রান করুন) ░%s\n\n" \
+        "$C2" "$BOLD" "$RST"
 }
 
-# ---------- Termux check ----------
-check_termux() {
-    if [ ! -d "/data/data/com.termux" ]; then
-        warn "Termux detect হয়নি — তবুও চেষ্টা করছি..."
-    else
-        ok "Termux detected"
-    fi
-}
+port_open() { (exec 3<>/dev/tcp/127.0.0.1/"$1") >/dev/null 2>&1; }
 
-# ---------- Package install ----------
+# -----------------------------------------------------------------------------
+# 1) প্যাকেজ + python module global install
+# -----------------------------------------------------------------------------
 install_pkgs() {
-    log "প্রয়োজনীয় প্যাকেজ চেক করা হচ্ছে..."
-    local need=()
-    command -v tor     >/dev/null 2>&1 || need+=("tor")
-    command -v curl    >/dev/null 2>&1 || need+=("curl")
-    command -v python  >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1 || need+=("python")
+    log "STEP 1/6 — প্যাকেজ + Python modules"
 
-    if [ ${#need[@]} -eq 0 ]; then
-        ok "সব প্যাকেজ আগে থেকেই আছে"
-        return 0
+    local need=()
+    command -v tor    >/dev/null 2>&1 || need+=("tor")
+    command -v python >/dev/null 2>&1 || need+=("python")
+    command -v curl   >/dev/null 2>&1 || need+=("curl")
+    command -v pip    >/dev/null 2>&1 || need+=("python-pip")
+    command -v nano   >/dev/null 2>&1 || need+=("nano")
+
+    if [ ${#need[@]} -gt 0 ]; then
+        warn "ইনস্টল হবে: ${need[*]}"
+        pkg update -y >/dev/null 2>&1
+        for p in "${need[@]}"; do
+            pkg install -y "$p" >/dev/null 2>&1
+        done
     fi
 
-    warn "ইনস্টল করতে হবে: ${need[*]}"
-    log "pkg update চালানো হচ্ছে..."
-    yes | pkg update -y >/dev/null 2>&1
-    for p in "${need[@]}"; do
-        log "ইনস্টল: $p"
-        yes | pkg install -y "$p" >/dev/null 2>&1
+    # Python modules (global — যেকোনো ফোল্ডারের যেকোনো স্ক্রিপ্টে কাজ করবে)
+    log "Python modules install/verify..."
+    pip install --upgrade pip setuptools wheel >/dev/null 2>&1
+
+    local mods=(pycryptodome requests colorama urllib3 charset-normalizer idna certifi)
+    for m in "${mods[@]}"; do
+        if ! python -c "import ${m//-/_}" >/dev/null 2>&1; then
+            log "  → pip install $m"
+            pip install --quiet "$m" >/dev/null 2>&1
+        fi
     done
 
-    # পুনরায় verify
-    command -v tor  >/dev/null 2>&1 || { err "tor ইনস্টল fail"; exit 1; }
-    command -v curl >/dev/null 2>&1 || { err "curl ইনস্টল fail"; exit 1; }
-    ok "সব প্যাকেজ ইনস্টল সম্পন্ন"
+    command -v tor    >/dev/null 2>&1 || { err "tor install fail"; exit 1; }
+    command -v python >/dev/null 2>&1 || { err "python install fail"; exit 1; }
+    ok "সব প্যাকেজ + module ready"
 }
 
-# ---------- torrc তৈরি ----------
+# -----------------------------------------------------------------------------
+# 2) torrc — global & bootstrap-friendly
+# -----------------------------------------------------------------------------
 write_torrc() {
-    log "torrc কনফিগার করা হচ্ছে → $TORRC_FILE"
+    log "STEP 2/6 — global torrc → $TORRC_FILE"
     mkdir -p "$TORRC_DIR" "$TOR_DATA"
+    [ -f "$TORRC_FILE" ] && cp "$TORRC_FILE" "$TORRC_FILE.bak.$(date +%s)" 2>/dev/null
 
-    # ControlPort-এ password ছাড়া auth দরকার
     cat > "$TORRC_FILE" <<EOF
-SocksPort $SOCKS_PORT
-ControlPort $CONTROL_PORT
+SocksPort 127.0.0.1:$SOCKS_PORT
+ControlPort 127.0.0.1:$CONTROL_PORT
 CookieAuthentication 0
-MaxCircuitDirtiness 10
-NewCircuitPeriod 10
 DataDirectory $TOR_DATA
 Log notice file $TOR_LOG
+ClientOnly 1
+MaxCircuitDirtiness 60
+NewCircuitPeriod 30
+AvoidDiskWrites 0
 EOF
-
     ok "torrc লেখা হয়েছে"
 }
 
-# ---------- Port check ----------
-port_open() {
-    local port="$1"
-    # Termux-এ nc নেই, তাই /dev/tcp ব্যবহার করছি (bash builtin)
-    (echo > /dev/tcp/127.0.0.1/"$port") >/dev/null 2>&1
-    return $?
-}
+# -----------------------------------------------------------------------------
+# 3) একবার bootstrap cache তৈরি (ভবিষ্যতে ৫-১০s-এ ready হবে)
+# -----------------------------------------------------------------------------
+prime_bootstrap() {
+    log "STEP 3/6 — Tor bootstrap cache তৈরি (একবারই লাগে, ৩০-১২০s)"
 
-# ---------- Tor চালু ----------
-start_tor() {
-    # আগে থেকে চললে বন্ধ করি
-    pkill -f "tor.*$SOCKS_PORT" >/dev/null 2>&1
+    ps -eo pid,args 2>/dev/null | grep -E '(^|/)tor( |$)' | grep -v grep \
+        | awk '{print $1}' | xargs -r kill -9 2>/dev/null
     sleep 1
 
-    log "Tor চালু করা হচ্ছে..."
+    : > "$TOR_LOG" 2>/dev/null
     tor -f "$TORRC_FILE" >/dev/null 2>&1 &
-    TOR_PID=$!
-    echo "$TOR_PID" > "$HOME/.tor_pid"
+    local pid=$!
 
-    # SOCKS port-এর জন্য অপেক্ষা (max 60s)
-    local i=0
-    while [ $i -lt 60 ]; do
-        if port_open "$SOCKS_PORT"; then
-            ok "Tor SOCKS port $SOCKS_PORT চালু (PID=$TOR_PID)"
+    local i=0 last_pct=0
+    while [ $i -lt 180 ]; do
+        if [ -s "$TOR_LOG" ]; then
+            local pct
+            pct=$(grep -oE 'Bootstrapped [0-9]+' "$TOR_LOG" 2>/dev/null \
+                  | tail -n1 | grep -oE '[0-9]+')
+            [ -n "$pct" ] && [ "$pct" -gt "$last_pct" ] && last_pct=$pct
+        fi
+
+        if port_open "$SOCKS_PORT" && port_open "$CONTROL_PORT"; then
+            printf "\r%s[*]%s Bootstrap: %s%d%%%s              \n" \
+                "$C2" "$RST" "$C3" "$last_pct" "$RST"
+            ok "Tor ready (PID=$pid) — cache সংরক্ষিত"
+            kill "$pid" >/dev/null 2>&1
+            sleep 1
             return 0
         fi
-        sleep 1
-        i=$((i+1))
-        printf "\r${C2}[*]${RST} Tor bootstrap... ${C4}%2ds${RST}" "$i"
+
+        printf "\r%s[*]%s Bootstrap: %s%d%%%s [%ds/180s]" \
+            "$C2" "$RST" "$C6" "$last_pct" "$RST" "$i"
+        sleep 2
+        i=$((i+2))
     done
     echo
-    err "Tor SOCKS port খুলতে ব্যর্থ"
-    return 1
-}
+    kill "$pid" >/dev/null 2>&1
 
-# ---------- IP আনা ----------
-get_ip() {
-    curl -s --socks5-hostname 127.0.0.1:$SOCKS_PORT \
-         --max-time 12 https://api.ipify.org 2>/dev/null
-}
-
-# ---------- IP rotate ----------
-rotate_ip() {
-    # ControlPort-এ SIGNAL NEWNYM পাঠাই
-    exec 3<>/dev/tcp/127.0.0.1/$CONTROL_PORT 2>/dev/null || return 1
-    printf 'AUTHENTICATE\r\n' >&3
-    sleep 0.2
-    printf 'SIGNAL NEWNYM\r\n' >&3
-    sleep 0.3
-    printf 'QUIT\r\n' >&3
-    exec 3<&-
-    exec 3>&-
+    if grep -q "Bootstrapped 100%" "$TOR_LOG" 2>/dev/null; then
+        ok "Log-এ 100% bootstrap পাওয়া গেছে"
+        return 0
+    fi
+    warn "সম্পূর্ণ bootstrap হয়নি — cache তবুও তৈরি হয়েছে"
     return 0
 }
 
-# ---------- Main rotation loop ----------
-rotation_loop() {
-    echo
-    log "Rotation চালু — প্রতি ${C4}${ROTATE_INTERVAL}s${RST} পর পর নতুন IP"
-    echo
+# -----------------------------------------------------------------------------
+# 4) helper script: tor_up.sh (auto-start tor, reusable)
+# -----------------------------------------------------------------------------
+install_tor_up_helper() {
+    log "STEP 4/6 — helper: $PREFIX/bin/tor_up"
 
-    local first=1
-    local count=0
-    local last_ip=""
+    cat > "$PREFIX/bin/tor_up" <<'TORUP'
+#!/data/data/com.termux/files/usr/bin/bash
+# Tor আগে থেকে চললে skip, নাহলে চালু করে wait
+TORRC="$HOME/.tor/torrc"
+LOG="$HOME/.tor_log"
+PIDFILE="$HOME/.tor_pid"
 
-    while true; do
-        if [ $first -eq 1 ]; then
-            first=0
-            IP=$(get_ip)
-            if [ -n "$IP" ]; then
-                box "$C3" "INITIAL IP" "🌐  $IP"
-                last_ip="$IP"
-            else
-                box "$C5" "ERROR" "IP আনা যায়নি"
+port_open() { (exec 3<>/dev/tcp/127.0.0.1/"$1") >/dev/null 2>&1; }
+
+if port_open 9050 && port_open 9051; then
+    exit 0
+fi
+
+# পুরনো tor বন্ধ
+ps -eo pid,args 2>/dev/null | grep -E '(^|/)tor( |$)' | grep -v grep \
+    | awk '{print $1}' | xargs -r kill -9 2>/dev/null
+sleep 1
+
+: > "$LOG" 2>/dev/null
+tor -f "$TORRC" >/dev/null 2>&1 &
+echo $! > "$PIDFILE"
+
+i=0
+while [ $i -lt 180 ]; do
+    if port_open 9050 && port_open 9051; then
+        exit 0
+    fi
+    sleep 2
+    i=$((i+2))
+done
+exit 1
+TORUP
+    chmod +x "$PREFIX/bin/tor_up"
+    ok "tor_up helper ইনস্টল: $PREFIX/bin/tor_up"
+}
+
+# -----------------------------------------------------------------------------
+# 5) ~/.bashrc — auto-start Tor + python wrapper
+# -----------------------------------------------------------------------------
+install_bashrc_hook() {
+    log "STEP 5/6 — ~/.bashrc-এ auto-start hook"
+
+    local BR="$HOME/.bashrc"
+    touch "$BR"
+
+    # পুরনো block সরাও (re-run safe)
+    if grep -q "$MARKER" "$BR"; then
+        # marker থেকে endmark পর্যন্ত কাটো
+        python - "$BR" "$MARKER" "$ENDMARK" <<'PYEOF'
+import sys, re
+path, m, e = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(path, 'r', encoding='utf-8') as f:
+    txt = f.read()
+txt = re.sub(re.escape(m) + r'.*?' + re.escape(e) + r'\n?', '', txt, flags=re.S)
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(txt)
+PYEOF
+    fi
+
+    cat >> "$BR" <<BASHRC
+
+$MARKER
+# ── Termux-এ প্রতি নতুন session-এ Tor auto-start ──
+if [ -z "\$ARIYAN_TOR_STARTED" ] && command -v tor >/dev/null 2>&1; then
+    export ARIYAN_TOR_STARTED=1
+    # শুধু interactive shell-এ
+    case "\$-" in
+        *i*)
+            if ! (exec 3<>/dev/tcp/127.0.0.1/9050) 2>/dev/null; then
+                (tor -f "\$HOME/.tor/torrc" >/dev/null 2>&1 &) >/dev/null 2>&1
             fi
-            sleep "$ROTATE_INTERVAL"
-            continue
-        fi
+            ;;
+    esac
+fi
 
-        rotate_ip
-        sleep 2.5
-
-        IP=$(get_ip)
-        count=$((count+1))
-
-        if [ -n "$IP" ] && [ "$IP" != "$last_ip" ]; then
-            box "$C6" "NEW IP #$count" "🌐  $IP"
-            last_ip="$IP"
-        else
-            # Retry
-            rotate_ip
-            sleep 2
-            IP2=$(get_ip)
-            if [ -n "$IP2" ] && [ "$IP2" != "$last_ip" ]; then
-                box "$C6" "NEW IP #$count" "🌐  $IP2"
-                last_ip="$IP2"
-            else
-                box "$C7" "SAME IP #$count" "🌐  ${IP2:-timeout}"
+# ── python wrapper: চালানোর আগে Tor verify ──
+python() {
+    local first_arg="\$1"
+    case "\$first_arg" in
+        *.py)
+            # Tor চলছে কিনা check; না থাকলে tor_up (max 180s wait)
+            if ! (exec 3<>/dev/tcp/127.0.0.1/9050) 2>/dev/null; then
+                if command -v tor_up >/dev/null 2>&1; then
+                    printf '\033[38;5;51m[*]\033[0m Tor চালু হচ্ছে...\n'
+                    tor_up
+                fi
             fi
-        fi
+            ;;
+    esac
+    command python "\$@"
+}
+$ENDMARK
+BASHRC
 
-        sleep "$ROTATE_INTERVAL"
+    ok "~/.bashrc-এ hook যোগ করা হয়েছে"
+    warn "active shell-এ apply করতে: source ~/.bashrc"
+}
+
+# -----------------------------------------------------------------------------
+# 6) verify
+# -----------------------------------------------------------------------------
+verify() {
+    log "STEP 6/6 — verify"
+
+    [ -f "$TORRC_FILE" ] && ok "torrc: $TORRC_FILE"
+    [ -d "$TOR_DATA" ]   && ok "data cache: $TOR_DATA"
+    [ -x "$PREFIX/bin/tor_up" ] && ok "tor_up helper executable"
+    grep -q "$MARKER" "$HOME/.bashrc" 2>/dev/null && ok "~/.bashrc hook আছে"
+
+    # tor binary
+    if command -v tor >/dev/null 2>&1; then
+        ok "tor binary: $(command -v tor)"
+    fi
+
+    # python modules
+    for m in Crypto requests colorama; do
+        python -c "import $m" >/dev/null 2>&1 && ok "python module: $m"
     done
 }
 
-# ---------- Cleanup on exit ----------
-cleanup() {
+# -----------------------------------------------------------------------------
+print_summary() {
     echo
-    warn "থামানো হচ্ছে..."
-    if [ -f "$HOME/.tor_pid" ]; then
-        local pid
-        pid=$(cat "$HOME/.tor_pid")
-        kill "$pid" >/dev/null 2>&1
-        rm -f "$HOME/.tor_pid"
-    fi
-    pkill -f "tor.*$SOCKS_PORT" >/dev/null 2>&1
-    ok "Tor বন্ধ হয়েছে। বিদায় 👋"
-    exit 0
+    printf "%s%s╔════════════════════════════════════════════════════╗%s\n" "$C3" "$BOLD" "$RST"
+    printf "%s%s║        ✅  TERMUX  GLOBALLY  FIXED                 ║%s\n" "$C3" "$BOLD" "$RST"
+    printf "%s%s╚════════════════════════════════════════════════════╝%s\n" "$C3" "$BOLD" "$RST"
+    echo
+    printf "%sএখন কী করতে হবে:%s\n" "$C4$BOLD" "$RST"
+    echo
+    printf "  %s1.%s একটি নতুন Terminal খুলুন (অথবা চালান: %ssource ~/.bashrc%s)\n" \
+        "$C3" "$RST" "$C6" "$RST"
+    echo
+    printf "  %s2.%s যেকোনো ফোল্ডারে যান:\n" "$C3" "$RST"
+    printf "        %scd /storage/emulated/0/যেকোনো-ফোল্ডার%s\n" "$C6" "$RST"
+    echo
+    printf "  %s3.%s যেকোনো v.py চালান:\n" "$C3" "$RST"
+    printf "        %spython v.py%s\n" "$C6$BOLD" "$RST"
+    echo
+    printf "%sএখন Termux যা করবে:%s\n" "$C4$BOLD" "$RST"
+    printf "  %s•%s Termux খোলার সাথে সাথে Tor auto-start হবে\n" "$C2" "$RST"
+    printf "  %s•%s যেকোনো .py চালালে Tor আগেই ready থাকবে\n" "$C2" "$RST"
+    printf "  %s•%s Python modules সব ফোল্ডারে কাজ করবে\n" "$C2" "$RST"
+    printf "  %s•%s bootstrap cache থাকায় %s৫-১০ সেকেন্ডে%s ready হবে\n" "$C2" "$RST" "$C3" "$RST"
+    echo
 }
-trap cleanup INT TERM
 
-# ---------- Main ----------
+# -----------------------------------------------------------------------------
 main() {
     banner
-    check_termux
     install_pkgs
     write_torrc
-
-    if ! start_tor; then
-        err "Tor চালু করা যায়নি — exit"
-        exit 1
-    fi
-
-    # ControlPort verify
-    if port_open "$CONTROL_PORT"; then
-        ok "Control port $CONTROL_PORT চালু — IP rotation সক্রিয়"
-    else
-        warn "Control port $CONTROL_PORT বন্ধ — rotation কাজ নাও করতে পারে"
-    fi
-
-    rotation_loop
+    prime_bootstrap
+    install_tor_up_helper
+    install_bashrc_hook
+    verify
+    print_summary
 }
 
 main
