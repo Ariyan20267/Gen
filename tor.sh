@@ -383,7 +383,7 @@ summary() {
     printf "  ${C_CYN}▸${RST} All Python modules globally available\n"
     echo
     line "$C_PUR"
-    printf "  ${C_PUR}${BOLD}✦ ${C_WHI}Developer: ARIYAN${RST}  ${C_PUR}·${RST}  ${C_WHI}Telegram: @rakibz4${RST}\n"
+    printf "  ${C_PUR}${BOLD}✦ ${C_WHI}Developer: ARIYAN${RST}  ${C_PUR}·${RST}  ${C_WHI}Telegram: @AriyanPrime_A9x${RST}\n"
     line "$C_PUR"
     echo
 }
