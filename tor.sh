@@ -24,7 +24,6 @@ CTRL_PORT=9051
 TORRC="$HOME/.tor/torrc"
 TORDATA="$HOME/.tor_data"
 TORLOG="$HOME/.tor_log"
-TORPID="$HOME/.tor_pid"
 BRC="$HOME/.bashrc"
 MARK="# >>> ARIYAN-TOR-FIX >>>"
 ENDM="# <<< ARIYAN-TOR-FIX <<<"
@@ -42,25 +41,35 @@ line() {
     printf "%s\n" "$RST"
 }
 
-box_open() {
-    local color="$1" title="$2" w=64
-    local pad=$(( (w - ${#title}) / 2 ))
-    local pad2=$(( w - ${#title} - pad ))
-    printf "%s╔" "$color"; for ((i=0;i<w;i++)); do printf "═"; done; printf "╗%s\n" "$RST"
-    printf "%s║%s%*s%s%s%s%*s%s║%s\n" \
-        "$color" "$RST" "$pad" "" "$BOLD$C_WHI" "$title" "$RST" "$pad2" "" "$color" "$RST"
-    printf "%s╠" "$color"; for ((i=0;i<w;i++)); do printf "═"; done; printf "╣%s\n" "$RST"
-}
-box_line() {
-    local color="$1" text="$2"
-    printf "%s║%s  %-58s  %s║%s\n" "$color" "$RST" "$text" "$color" "$RST"
-}
-box_close() {
-    local color="$1"
-    printf "%s╚" "$color"; for ((i=0;i<64;i++)); do printf "═"; done; printf "╝%s\n" "$RST"
+port_open() { (exec 3<>/dev/tcp/127.0.0.1/"$1") >/dev/null 2>&1; }
+
+# ─── Read latest bootstrap % from log ───
+bootstrap_pct() {
+    [ -s "$TORLOG" ] || { echo 0; return; }
+    local p
+    p=$(grep -oE 'Bootstrapped [0-9]+' "$TORLOG" 2>/dev/null | tail -n1 | grep -oE '[0-9]+')
+    echo "${p:-0}"
 }
 
-port_open() { (exec 3<>/dev/tcp/127.0.0.1/"$1") >/dev/null 2>&1; }
+# ─── Check log for 100% bootstrap ───
+bootstrap_done() {
+    grep -q "Bootstrapped 100" "$TORLOG" 2>/dev/null
+}
+
+# ─── Actually verify Tor works (not just port open) ───
+tor_truly_ready() {
+    # 1. Log says 100%
+    bootstrap_done || return 1
+    # 2. Both ports open
+    port_open "$SOCKS_PORT" || return 1
+    port_open "$CTRL_PORT" || return 1
+    # 3. Real HTTP request via Tor succeeds
+    local ip
+    ip=$(curl -s --socks5-hostname 127.0.0.1:$SOCKS_PORT --max-time 15 \
+         https://api.ipify.org 2>/dev/null)
+    [ -n "$ip" ] && echo "$ip" >/dev/null && return 0
+    return 1
+}
 
 kill_all_tor() {
     local pids
@@ -99,9 +108,7 @@ step_packages() {
     command -v tor >/dev/null 2>&1 || need+=("tor")
     command -v python >/dev/null 2>&1 || need+=("python")
     command -v curl >/dev/null 2>&1 || need+=("curl")
-    if ! command -v pip >/dev/null 2>&1; then
-        need+=("python-pip")
-    fi
+    command -v pip >/dev/null 2>&1 || need+=("python-pip")
 
     if [ ${#need[@]} -eq 0 ]; then
         ok "All system packages already present"
@@ -116,26 +123,16 @@ step_packages() {
     fi
 
     info "Verifying Python modules..."
-    local py_mods=(
-        "pycryptodome:Crypto"
-        "requests:requests"
-        "colorama:colorama"
-        "urllib3:urllib3"
-    )
+    local py_mods=("pycryptodome:Crypto" "requests:requests" "colorama:colorama" "urllib3:urllib3")
     for entry in "${py_mods[@]}"; do
-        local pipname="${entry%%:*}"
-        local modname="${entry##*:}"
+        local pipname="${entry%%:*}" modname="${entry##*:}"
         if python -c "import $modname" >/dev/null 2>&1; then
             ok "module OK: $modname"
         else
             info "pip install $pipname"
             pip install --quiet --disable-pip-version-check "$pipname" >/dev/null 2>&1 || \
                 pip install --quiet --break-system-packages "$pipname" >/dev/null 2>&1 || true
-            if python -c "import $modname" >/dev/null 2>&1; then
-                ok "module installed: $modname"
-            else
-                fail "module failed: $modname"
-            fi
+            python -c "import $modname" >/dev/null 2>&1 && ok "module installed: $modname" || fail "module failed: $modname"
         fi
     done
 }
@@ -165,49 +162,49 @@ EOF
 }
 
 step_bootstrap() {
-    step "STEP 3 / 5  ·  Tor Bootstrap Cache (First-time warm-up)"
+    step "STEP 3 / 5  ·  Tor Bootstrap Cache (must reach 100%)"
     line "$C_CYN"
 
     kill_all_tor
     : > "$TORLOG" 2>/dev/null || true
 
-    info "Starting Tor — waiting for bootstrap (max 180s)..."
+    info "Starting Tor — waiting for real 100% bootstrap (max 300s)..."
     tor -f "$TORRC" >/dev/null 2>&1 &
     local pid=$!
 
-    local i=0 last=0
-    while [ $i -lt 180 ]; do
-        if [ -s "$TORLOG" ]; then
-            local p
-            p=$(grep -oE 'Bootstrapped [0-9]+' "$TORLOG" 2>/dev/null | tail -n1 | grep -oE '[0-9]+')
-            [ -n "$p" ] && [ "$p" -gt "$last" ] && last=$p
+    local i=0
+    while [ $i -lt 300 ]; do
+        local pct
+        pct=$(bootstrap_pct)
+
+        if bootstrap_done && port_open "$SOCKS_PORT" && port_open "$CTRL_PORT"; then
+            printf "\r  ${C_GRN}✓${RST} Bootstrap: ${C_GRN}100%%${RST}  —  SOCKS+CTRL ready             \n"
+            # Final real-world check
+            local ip
+            ip=$(curl -s --socks5-hostname 127.0.0.1:$SOCKS_PORT --max-time 20 \
+                 https://api.ipify.org 2>/dev/null)
+            if [ -n "$ip" ]; then
+                ok "Tor live-test passed — IP: $ip"
+                echo "$pid" > "$HOME/.tor_pid"
+                # Keep Tor running in background (do NOT kill — v.py needs it)
+                ok "Tor running in background (PID=$pid)"
+                return 0
+            else
+                warn "Port open but IP fetch failed — retrying..."
+            fi
         fi
 
-        if port_open "$SOCKS_PORT" && port_open "$CTRL_PORT"; then
-            printf "\r  ${C_GRN}✓${RST} Bootstrap: ${C_GRN}%3d%%${RST}  —  SOCKS+CTRL ready            \n" "$last"
-            ok "Tor ready (PID=$pid) — cache stored"
-            echo "$pid" > "$TORPID"
-            kill "$pid" >/dev/null 2>&1 || true
-            sleep 1
-            return 0
-        fi
-
-        printf "\r  ${C_CYN}▸${RST} Bootstrap: ${C_YEL}%3d%%${RST}  [%3ds/180s]  " "$last" "$i"
+        printf "\r  ${C_CYN}▸${RST} Bootstrap: ${C_YEL}%3d%%${RST}  [%3ds/300s]  " "$pct" "$i"
         sleep 2
         i=$((i+2))
     done
 
     echo
+    fail "Bootstrap did NOT reach 100% within 300s"
+    fail "Tor log tail:"
+    tail -n 20 "$TORLOG" 2>/dev/null | sed 's/^/      /'
     kill "$pid" >/dev/null 2>&1 || true
-
-    if grep -q "Bootstrapped 100" "$TORLOG" 2>/dev/null; then
-        ok "Log confirms 100% bootstrap"
-        return 0
-    fi
-
-    warn "Bootstrap incomplete — cache still built"
-    warn "Tor log: $TORLOG"
-    return 0
+    return 1
 }
 
 step_helper() {
@@ -221,18 +218,32 @@ LOG="$HOME/.tor_log"
 
 port_open() { (exec 3<>/dev/tcp/127.0.0.1/"$1") >/dev/null 2>&1; }
 
-port_open 9050 && port_open 9051 && exit 0
+# Already bootstrap-done? Verify with a live request
+if grep -q "Bootstrapped 100" "$LOG" 2>/dev/null && \
+   port_open 9050 && port_open 9051; then
+    curl -s --socks5-hostname 127.0.0.1:9050 --max-time 10 \
+         https://api.ipify.org >/dev/null 2>&1 && exit 0
+fi
 
+# Kill stale
 ps -eo pid,args 2>/dev/null | grep -E '(^|/)tor( |$)' | grep -v grep \
     | awk '{print $1}' | xargs -r kill -9 2>/dev/null
 sleep 1
 
+# Fresh start
 : > "$LOG" 2>/dev/null
 tor -f "$TORRC" >/dev/null 2>&1 &
 
+# Wait for real 100% + live test
 i=0
-while [ $i -lt 180 ]; do
-    port_open 9050 && port_open 9051 && exit 0
+while [ $i -lt 300 ]; do
+    if grep -q "Bootstrapped 100" "$LOG" 2>/dev/null && \
+       port_open 9050 && port_open 9051; then
+        if curl -s --socks5-hostname 127.0.0.1:9050 --max-time 15 \
+                https://api.ipify.org >/dev/null 2>&1; then
+            exit 0
+        fi
+    fi
     sleep 2
     i=$((i+2))
 done
@@ -280,10 +291,19 @@ fi
 python() {
     case "\${1:-}" in
         *.py)
-            if ! (exec 3<>/dev/tcp/127.0.0.1/9050) 2>/dev/null; then
-                printf '\033[38;5;51m[tor]\033[0m starting Tor...\n'
+            # Check if Tor is truly ready (bootstrap 100% + live test)
+            local _ok=0
+            if grep -q "Bootstrapped 100" "\$HOME/.tor_log" 2>/dev/null && \
+               (exec 3<>/dev/tcp/127.0.0.1/9050) 2>/dev/null; then
+                if curl -s --socks5-hostname 127.0.0.1:9050 --max-time 8 \
+                        https://api.ipify.org >/dev/null 2>&1; then
+                    _ok=1
+                fi
+            fi
+            if [ "\$_ok" -eq 0 ]; then
+                printf '\033[38;5;51m[tor]\033[0m waiting for Tor bootstrap...\n'
                 if command -v tor_up >/dev/null 2>&1; then
-                    tor_up || printf '\033[38;5;196m[tor]\033[0m failed\n'
+                    tor_up || printf '\033[38;5;196m[tor]\033[0m bootstrap failed\n'
                 fi
             fi
             ;;
@@ -302,17 +322,9 @@ verify_all() {
 
     local pass=0 failn=0
 
-    if command -v tor >/dev/null 2>&1; then
-        ok "tor binary: $(command -v tor)"; pass=$((pass+1))
-    else
-        fail "tor binary missing"; failn=$((failn+1))
-    fi
+    command -v tor >/dev/null 2>&1 && { ok "tor binary: $(command -v tor)"; pass=$((pass+1)); } || { fail "tor binary missing"; failn=$((failn+1)); }
 
-    if [ -f "$TORRC" ]; then
-        ok "torrc exists"; pass=$((pass+1))
-    else
-        fail "torrc missing"; failn=$((failn+1))
-    fi
+    [ -f "$TORRC" ] && { ok "torrc exists"; pass=$((pass+1)); } || { fail "torrc missing"; failn=$((failn+1)); }
 
     if grep -q "MaxCircuitDirtiness 60" "$TORRC" 2>/dev/null && \
        grep -q "NewCircuitPeriod 30" "$TORRC" 2>/dev/null; then
@@ -327,24 +339,29 @@ verify_all() {
         fail "bootstrap cache empty"; failn=$((failn+1))
     fi
 
-    if [ -x "$PREFIX/bin/tor_up" ]; then
-        ok "tor_up helper executable"; pass=$((pass+1))
+    # CRITICAL: verify actual bootstrap 100% in log
+    if bootstrap_done; then
+        ok "Tor log: Bootstrapped 100%"; pass=$((pass+1))
     else
-        fail "tor_up helper missing"; failn=$((failn+1))
+        fail "Tor log: bootstrap NOT complete"; failn=$((failn+1))
     fi
 
-    if grep -qF "$MARK" "$BRC" 2>/dev/null; then
-        ok "~/.bashrc hook present"; pass=$((pass+1))
+    # CRITICAL: verify live Tor works
+    local live_ip
+    live_ip=$(curl -s --socks5-hostname 127.0.0.1:$SOCKS_PORT --max-time 15 \
+              https://api.ipify.org 2>/dev/null)
+    if [ -n "$live_ip" ]; then
+        ok "Live Tor test: IP = $live_ip"; pass=$((pass+1))
     else
-        fail "~/.bashrc hook missing"; failn=$((failn+1))
+        fail "Live Tor test: FAILED (SOCKS request timeout)"; failn=$((failn+1))
     fi
+
+    [ -x "$PREFIX/bin/tor_up" ] && { ok "tor_up helper executable"; pass=$((pass+1)); } || { fail "tor_up helper missing"; failn=$((failn+1)); }
+
+    grep -qF "$MARK" "$BRC" 2>/dev/null && { ok "~/.bashrc hook present"; pass=$((pass+1)); } || { fail "~/.bashrc hook missing"; failn=$((failn+1)); }
 
     for m in Crypto requests colorama urllib3; do
-        if python -c "import $m" >/dev/null 2>&1; then
-            ok "python module: $m"; pass=$((pass+1))
-        else
-            fail "python module missing: $m"; failn=$((failn+1))
-        fi
+        python -c "import $m" >/dev/null 2>&1 && { ok "python module: $m"; pass=$((pass+1)); } || { fail "python module missing: $m"; failn=$((failn+1)); }
     done
 
     echo
@@ -357,17 +374,14 @@ verify_all() {
 
 summary() {
     echo
-    box_open "$C_GRN" "✅  TERMUX  GLOBALLY  FIXED  —  100%  VERIFIED"
-    box_line "$C_GRN" "Tor auto-starts on every new Termux shell"
-    box_line "$C_GRN" "Any v.py runs from any folder without timeout"
-    box_line "$C_GRN" "Bootstrap cache pre-built — instant ready"
-    box_line "$C_GRN" "IP rotation works via ControlPort 9051"
-    box_close "$C_GRN"
+    printf "  ${C_GRN}${BOLD}╔══════════════════════════════════════════════════════════════╗${RST}\n"
+    printf "  ${C_GRN}${BOLD}║      ✅  TERMUX  GLOBALLY  FIXED  —  100%%  VERIFIED         ║${RST}\n"
+    printf "  ${C_GRN}${BOLD}╚══════════════════════════════════════════════════════════════╝${RST}\n"
     echo
-    printf "  ${BOLD}${C_YEL}Next steps:${RST}\n\n"
-    printf "  ${C_CYN}1.${RST} Open a new Termux terminal (or run: ${C_ORG}source ~/.bashrc${RST})\n"
-    printf "  ${C_CYN}2.${RST} cd to any folder: ${C_ORG}cd /storage/emulated/0/any-folder${RST}\n"
-    printf "  ${C_CYN}3.${RST} Run any script: ${C_ORG}${BOLD}python v.py${RST}\n\n"
+    printf "  ${C_CYN}▸${RST} Tor is running now and will auto-start on every new shell\n"
+    printf "  ${C_CYN}▸${RST} IP rotation via ControlPort 9051 works\n"
+    printf "  ${C_CYN}▸${RST} All Python modules globally available\n"
+    echo
     line "$C_PUR"
     printf "  ${C_PUR}${BOLD}✦ ${C_WHI}Developer: ARIYAN${RST}  ${C_PUR}·${RST}  ${C_WHI}Telegram: @rakibz4${RST}\n"
     line "$C_PUR"
@@ -382,7 +396,22 @@ main() {
 
     step_packages
     step_torrc
-    step_bootstrap
+
+    if ! step_bootstrap; then
+        echo
+        printf "  ${C_RED}${BOLD}╔══════════════════════════════════════════════════════════════╗${RST}\n"
+        printf "  ${C_RED}${BOLD}║   ✗  BOOTSTRAP  FAILED  —  Tor cannot reach network         ║${RST}\n"
+        printf "  ${C_RED}${BOLD}╚══════════════════════════════════════════════════════════════╝${RST}\n"
+        echo
+        printf "  ${C_YEL}Possible causes:${RST}\n"
+        printf "    • ISP blocking Tor (try mobile data)\n"
+        printf "    • VPN active (disable it)\n"
+        printf "    • No internet connection\n"
+        printf "    • Firewall blocking ports\n"
+        echo
+        exit 1
+    fi
+
     step_helper
     step_bashrc
 
@@ -391,9 +420,7 @@ main() {
         exit 0
     else
         echo
-        box_open "$C_RED" "✗  SOME  STEPS  FAILED"
-        box_line "$C_RED" "Review the FAIL lines above and re-run"
-        box_close "$C_RED"
+        printf "  ${C_RED}${BOLD}✗  Some checks FAILED — review above${RST}\n"
         exit 1
     fi
 }
